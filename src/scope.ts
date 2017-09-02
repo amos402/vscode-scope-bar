@@ -148,8 +148,10 @@ export class ScopeSymbolProvider {
         this._status.tooltip = 'Symbol Navigation';
         this._status.command = 'workbench.action.gotoSymbol';
 
-        if (vscode.window.activeTextEditor) {
-            this._scopeFinder = new ScopeFinder(vscode.window.activeTextEditor.document);
+        let editor = vscode.window.activeTextEditor;
+        if (editor) {
+            this._scopeFinder = new ScopeFinder(editor.document);
+            this.updateStatus(editor.selection.start);
         }
         vscode.window.onDidChangeTextEditorSelection(async e => {
             if (e.selections.length < 1) {

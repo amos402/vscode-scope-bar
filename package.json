@@ -15,10 +15,6 @@
     ],
     "main": "./out/src/extension",
     "contributes": {
-        "commands": [{
-            "command": "scopebar.activate",
-            "title": "Activate Scope Bar"
-        }]
     },
     "scripts": {
         "vscode:prepublish": "tsc -p ./",
