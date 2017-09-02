@@ -4,11 +4,24 @@
     "description": "",
     "version": "0.0.1",
     "publisher": "amos402",
+    "author": {
+		"name": "amos402",
+		"email": "amos_402@msn.com"
+	},
+	"license": "MIT",
+	"homepage": "https://github.com/amos402/vscode-scope-bar",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/amos402/vscode-scope-bar"
+	},
+	"bugs": {
+		"url": "https://github.com/amos402/vscode-scope-bar/issues"
+	},
     "engines": {
-        "vscode": "^1.15.0"
+        "vscode": "^1.9.0"
     },
     "categories": [
-        "Other"
+        "Languages", "Other"
     ],
     "activationEvents": [
         "*"
