@@ -3,6 +3,7 @@
     "displayName": "Scope Bar",
     "description": "",
     "version": "0.0.1",
+    "icon": "https://github.com/amos402/vscode-scope-bar/raw/master/images/icon.png",
     "publisher": "amos402",
     "author": {
 		"name": "amos402",
