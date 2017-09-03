@@ -67,7 +67,7 @@ class SymbolNode {
 
     public getFullName() {
         if (this.isRoot) {
-            return 'Gloabl Scope';
+            return 'Global Scope';
         }
         this.symbolInfo.name;
         let node: SymbolNode = this;
