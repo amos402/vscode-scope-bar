@@ -24,7 +24,6 @@ class SymbolNode {
     public static createSymbolTree(symbols: vscode.SymbolInformation[]): SymbolNode {
         let root = new SymbolNode(null);
         let curNode = root;
-        let nodeStack = [root];
         let lastNode: SymbolNode = root;
         // XXX they should be sorted by symbol provider, usually ( ˘ω˘ )
         symbols.forEach(sym => {
@@ -87,12 +86,28 @@ class SymbolNode {
             yield* child.iterNodes();
         }
     }
+
+    public *iterNodesRevers(): Iterable<SymbolNode> {
+        const len = this.children.length;
+        for (let index = len - 1; index >= 0; index--) {
+            yield* this.children[index].iterNodesRevers();
+        }
+        yield this;
+    }
 }
 
+
+class CancelUpdateError implements Error {
+    public name:string = 'CancelUpdateError';
+    constructor(public message: string){
+
+    }
+}
 
 export class ScopeFinder {
     private _symbolRoot: SymbolNode;
     private _updated;
+    private _cancelToken: vscode.CancellationTokenSource;
 
     constructor(private _doc: vscode.TextDocument) {
         this._updated = true;
@@ -121,16 +136,30 @@ export class ScopeFinder {
         if (!this._updated) {
             return;
         }
+        if (this._cancelToken) {
+            this._cancelToken.cancel();
+        }
+        this._cancelToken = new vscode.CancellationTokenSource();
+        let token = this._cancelToken.token;
+        // FIXME: need update flag and CancellationToken both same time?
+        this._updated = false;
         let symbols = await this.getScopeSymbols();
+        if (token.isCancellationRequested) {
+            throw new CancelUpdateError ("CancellationRequested");
+        }
+        if (symbols.length == 0) {
+            this._updated = true;
+        }
         this._symbolRoot = SymbolNode.createSymbolTree(symbols);
     }
 
     public async getScopeNode(pos: vscode.Position): Promise<SymbolNode> {
         await this.updateNode();
-        let target: SymbolNode = this._symbolRoot;
-        for (let node of this._symbolRoot.iterNodes()) {
+        let target: SymbolNode;
+        for (let node of this._symbolRoot.iterNodesRevers()) {
             if (node.constaisPos(pos)) {
                 target = node;
+                break;
             }
         }
         return target;
@@ -142,6 +171,10 @@ export class ScopeSymbolProvider {
     // TODO: cache necessary?
     private _scopeFinder: ScopeFinder;
     private _status: vscode.StatusBarItem;
+
+    private _lastSelection: [vscode.TextDocument, vscode.Position];
+    private _lastPos: vscode.Position;
+    private _cancelToken: vscode.CancellationTokenSource;
 
     constructor(private _context: vscode.ExtensionContext) {
         this._status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -166,6 +199,7 @@ export class ScopeSymbolProvider {
                 this.updateStatus();
                 return;
             }
+            this._lastPos = null;
             this._scopeFinder = new ScopeFinder(e.document);
             this.updateStatus(e.selection.start);
         });
@@ -182,16 +216,37 @@ export class ScopeSymbolProvider {
         });
     }
 
-    private async updateStatus(pos?: vscode.Position) {
-        if (!pos) {
-            this._status.hide();
-            return;
+    private updateStatus(pos?: vscode.Position) {
+        if (this._cancelToken) {
+            this._cancelToken.cancel();
         }
-        let node = await this._scopeFinder.getScopeNode(pos);
-        if (!node) {
-            this._status.hide();
-        }
-        this._status.text = node.getFullName();
-        this._status.show();
+        this._cancelToken = new vscode.CancellationTokenSource();
+        setTimeout(async(token: vscode.CancellationToken) =>{
+            if (token.isCancellationRequested) {
+                return;
+            }
+            if (!pos) {
+                this._status.hide();
+                return;
+            }
+            if(this._lastPos == pos) {
+                return;
+            }
+            let node: SymbolNode;
+            try {
+                node = await this._scopeFinder.getScopeNode(pos);
+            } catch (err) {
+                if (err.name == 'CancelUpdateError'){
+                    return;
+                }
+                throw err;
+            }
+            if (!node) {
+                this._status.hide();
+            }
+            this._status.text = node.getFullName();
+            this._status.show();
+            
+        }, 32, this._cancelToken.token);
     }
 }
