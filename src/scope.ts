@@ -7,7 +7,8 @@ const ScopeSymbolKind = [
     SymbolKind.Function,
     SymbolKind.Class,
     SymbolKind.Namespace,
-    SymbolKind.Module
+    SymbolKind.Module,
+    SymbolKind.Constructor
 ];
 
 
@@ -15,6 +16,7 @@ class SymbolNode {
     parent?: SymbolNode;
     children: SymbolNode[];
     symbolInfo?: vscode.SymbolInformation;
+    _range?: vscode.Range;
 
     constructor(symbolinfo?: vscode.SymbolInformation) {
         this.symbolInfo = symbolinfo;
@@ -23,14 +25,25 @@ class SymbolNode {
 
     public static createSymbolTree(symbols: vscode.SymbolInformation[]): SymbolNode {
         let root = new SymbolNode(null);
-        let curNode = root;
         let lastNode: SymbolNode = root;
+
+        // Some language servers provide a symbol.location.range that covers only the symbol
+        // _name_, not the _body_ of the corresponding class/function/etc. Such ranges are not
+        // "proper" and are useless for our purpose of checking symbol nesting.
+        // If we don't have proper ranges:
+        // - we fallback to heuristics in containsNode()
+        // - we compute approximate ranges in computeChildrenRange()
+        //
+        // We detect such cases by checking whether all symbols cover just a single line.
+ 
+        let properRanges = symbols.find(sym => sym.location.range.start.line != sym.location.range.end.line) != null;
+
         // XXX they should be sorted by symbol provider, usually ( ˘ω˘ )
         symbols.forEach(sym => {
             let node = new SymbolNode(sym);
-            curNode = lastNode;
+            let curNode = lastNode;
             while (curNode) {
-                if (curNode.containsNodePos(node)) {
+                if (curNode.containsNode(properRanges, node)) {
                     curNode.addNode(node);
                     break;
                 }
@@ -38,11 +51,47 @@ class SymbolNode {
             }
             lastNode = node;
         });
+ 
+        if (!properRanges) {
+            root._range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(1e10, 0)); // whole file
+            root.computeChildRanges();
+        }
+ 
         return root;
+    }
+
+    private computeChildRanges() {
+        // Approximate ranges if we don't have real ones.
+
+        for (let i = 0; i < this.children.length; i++) {
+            let child = this.children[i];
+            
+            // start: at the first character of the symbol's line (keywords typically appear before a function name)
+            let start = new vscode.Position(child.symbolInfo.location.range.start.line, 0);
+            
+            // end: either at the start of the node's next sibling (if any), or at the end of the node's parent
+            let end;
+            if (i+1 < this.children.length) {
+                end = this.children[i+1].symbolInfo.location.range.start;
+            } else {
+                end = this._range.end;
+            }
+
+            child._range = new vscode.Range(start, end);
+            child.computeChildRanges();
+        }
     }
 
     public get isRoot() {
         return !this.symbolInfo;
+    }
+
+    private get kind() {
+        return this.symbolInfo ? this.symbolInfo.kind : SymbolKind.Null;
+    }
+
+    private get range() {
+        return this._range || this.symbolInfo.location.range;
     }
 
     public addNode(node: SymbolNode) {
@@ -50,18 +99,36 @@ class SymbolNode {
         node.parent = this;
     }
 
-    public containsNodePos(node: SymbolNode) {
+    private containsNode(properRanges: Boolean, node: SymbolNode) {
         if (this.isRoot) {
             return true;
+        } else if (properRanges) {
+            return this.range.contains(node.symbolInfo.location.range.end);
+        } else {
+            // No proper ranges, fallback to heuristics.
+            // Assume no nested namespaces/classes/functions.
+
+            switch (this.kind) {
+                case SymbolKind.Namespace:
+                    return node.kind != SymbolKind.Namespace;
+                    
+                case SymbolKind.Class:
+                case SymbolKind.Module:
+                    return node.kind == SymbolKind.Function ||
+                           node.kind == SymbolKind.Method   ||
+                           node.kind == SymbolKind.Constructor;
+ 
+                default:        // Method | Function | Constructor
+                    return false;
+            }
         }
-        return this.symbolInfo.location.range.contains(node.symbolInfo.location.range.end);
     }
 
-    public constaisPos(pos: vscode.Position) {
+    public containsPos(pos: vscode.Position) {
         if (this.isRoot) {
             return true;
         }
-        return this.symbolInfo.location.range.contains(pos);
+        return this.range.contains(pos);
     }
 
     public getFullName() {
@@ -157,7 +224,7 @@ export class ScopeFinder {
         await this.updateNode();
         let target: SymbolNode;
         for (let node of this._symbolRoot.iterNodesRevers()) {
-            if (node.constaisPos(pos)) {
+            if (node.containsPos(pos)) {
                 target = node;
                 break;
             }
