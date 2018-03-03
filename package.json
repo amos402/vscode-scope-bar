@@ -1,35 +1,35 @@
 {
     "name": "scope-bar",
     "displayName": "Scope Bar",
-    "description": "",
-    "version": "0.0.3",
+    "description": "Showing the scope symbol name of the cursor on status bar.",
+    "version": "0.0.4",
     "icon": "images/icon.png",
     "publisher": "amos402",
     "author": {
-		"name": "amos402",
-		"email": "amos_402@msn.com"
-	},
-	"license": "MIT",
-	"homepage": "https://github.com/amos402/vscode-scope-bar",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/amos402/vscode-scope-bar"
-	},
-	"bugs": {
-		"url": "https://github.com/amos402/vscode-scope-bar/issues"
-	},
+        "name": "amos402",
+        "email": "amos_402@msn.com"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/amos402/vscode-scope-bar",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/amos402/vscode-scope-bar"
+    },
+    "bugs": {
+        "url": "https://github.com/amos402/vscode-scope-bar/issues"
+    },
     "engines": {
         "vscode": "^1.9.0"
     },
     "categories": [
-        "Languages", "Other"
+        "Languages",
+        "Other"
     ],
     "activationEvents": [
         "*"
     ],
     "main": "./out/src/extension",
-    "contributes": {
-    },
+    "contributes": {},
     "scripts": {
         "vscode:prepublish": "tsc -p ./",
         "compile": "tsc -watch -p ./",
