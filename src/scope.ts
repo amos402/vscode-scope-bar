@@ -175,9 +175,14 @@ export class ScopeFinder {
     private _symbolRoot: SymbolNode;
     private _updated;
     private _cancelToken: vscode.CancellationTokenSource;
+    private static _dummyNode = new SymbolNode(null);
 
     constructor(private _doc: vscode.TextDocument) {
         this._updated = true;
+    }
+
+    public get dummyNode() {
+        return ScopeFinder._dummyNode;
     }
 
     public get document() {
@@ -222,7 +227,10 @@ export class ScopeFinder {
 
     public async getScopeNode(pos: vscode.Position): Promise<SymbolNode> {
         await this.updateNode();
-        let target: SymbolNode;
+        if (!this._symbolRoot) {
+            return null;
+        }
+        let target: SymbolNode = null;
         for (let node of this._symbolRoot.iterNodesRevers()) {
             if (node.containsPos(pos)) {
                 target = node;
@@ -283,7 +291,7 @@ export class ScopeSymbolProvider {
         });
     }
 
-    private updateStatus(pos?: vscode.Position) {
+    private updateStatus(pos?: vscode.Position, delay?: number) {
         if (this._cancelToken) {
             this._cancelToken.cancel();
         }
@@ -309,11 +317,14 @@ export class ScopeSymbolProvider {
                 throw err;
             }
             if (!node) {
-                this._status.hide();
+                // The updateNode call may reject by timeout, use an empyty node for now
+                // and refresh the status next time
+                node = this._scopeFinder.dummyNode;
+                this.updateStatus(pos, 1000);
             }
             this._status.text = node.getFullName();
             this._status.show();
             
-        }, 32, this._cancelToken.token);
+        }, delay ? delay : 32, this._cancelToken.token);
     }
 }
