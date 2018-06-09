@@ -35,6 +35,29 @@
                 "command": "scopebar.ShowScopeSymbols",
                 "title": "Show Scope's Symbols"
             }
+        ],
+        "keybindings":[
+            {
+                "command": "scopebar.ShowScopeSymbols",
+                "key": "ctrl+alt+p"
+            }
+        ],
+        "configuration":[
+            {
+                "title": "ScopeBar.Navigate",
+                "properties": {
+                    "scopebar.Navigate": {
+                        "scope": "resource",
+                        "type": "string",
+                        "enum": [
+                            "ScopeSymbol",
+                            "FileSymbol"
+                        ],
+                        "default": "ScopeSymbol",
+                        "description": "Behavior for click status bar or command for 'ShowScopeSymbols'."
+                    }
+                }
+            }
         ]
     },
     "scripts": {

@@ -250,14 +250,18 @@ export class ScopeSymbolProvider {
     private _scopeFinder: ScopeFinder;
     private _status: vscode.StatusBarItem;
 
-    private _lastSelection: [vscode.TextDocument, vscode.Position];
     private _lastPos: vscode.Position;
     private _cancelToken: vscode.CancellationTokenSource;
 
-    constructor(private _context: vscode.ExtensionContext) {
+    constructor(context: vscode.ExtensionContext) {
         this._status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
         this._status.tooltip = 'Symbol Navigation';
-        this._status.command = 'scopebar.ShowScopeSymbols';
+        this.refreshNavigateCommand();
+        context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('scopebar.Navigate')) {
+                this.refreshNavigateCommand();
+            }
+        }));
 
         let editor = vscode.window.activeTextEditor;
         if (editor) {
@@ -298,6 +302,20 @@ export class ScopeSymbolProvider {
             let node = await this._scopeFinder.getScopeNode(selection.start);
             this.showScopeSymbols(node);
         });
+    }
+
+    private refreshNavigateCommand() {
+        const config = vscode.workspace.getConfiguration('scopebar');
+        let command: string;
+        switch (config['Navigate']) {
+            case 'FileSymbol':
+                command = 'workbench.action.gotoSymbol';
+                break;
+            default:
+                command = 'scopebar.ShowScopeSymbols'
+                break;
+        }
+        this._status.command = command;
     }
 
     private updateStatus(pos?: vscode.Position, delay?: number) {
@@ -343,7 +361,7 @@ export class ScopeSymbolProvider {
         }
         let node = item.node;
         vscode.window.activeTextEditor.revealRange(
-            node.range, vscode.TextEditorRevealType.InCenter);
+            node.range, vscode.TextEditorRevealType.Default);
 
         let pos = node.range.start;
         let newSelection = new vscode.Selection(pos, pos);
