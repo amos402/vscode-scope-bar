@@ -38,7 +38,7 @@ class SymbolNode {
  
         let properRanges = symbols.find(sym => sym.location.range.start.line != sym.location.range.end.line) != null;
 
-        // XXX they should be sorted by symbol provider, usually ( ˘ω˘ )
+        // XXX they should be sorted by symbol provider, usually
         symbols.forEach(sym => {
             let node = new SymbolNode(sym);
             let curNode = lastNode;
@@ -90,7 +90,7 @@ class SymbolNode {
         return this.symbolInfo ? this.symbolInfo.kind : SymbolKind.Null;
     }
 
-    private get range() {
+    public get range() {
         return this._range || this.symbolInfo.location.range;
     }
 
@@ -135,7 +135,6 @@ class SymbolNode {
         if (this.isRoot) {
             return 'Global Scope';
         }
-        this.symbolInfo.name;
         let node: SymbolNode = this;
         let nameList: string[] = [];
         do {
@@ -165,8 +164,8 @@ class SymbolNode {
 
 
 class CancelUpdateError implements Error {
-    public name:string = 'CancelUpdateError';
-    constructor(public message: string){
+    public name: string = 'CancelUpdateError';
+    constructor(public message: string) {
 
     }
 }
@@ -217,7 +216,7 @@ export class ScopeFinder {
         this._updated = false;
         let symbols = await this.getScopeSymbols();
         if (token.isCancellationRequested) {
-            throw new CancelUpdateError ("CancellationRequested");
+            throw new CancelUpdateError("CancellationRequested");
         }
         if (symbols.length == 0) {
             this._updated = true;
@@ -242,6 +241,10 @@ export class ScopeFinder {
 }
 
 
+interface NavigationItem extends vscode.QuickPickItem {
+    node: SymbolNode;
+}
+
 export class ScopeSymbolProvider {
     // TODO: cache necessary?
     private _scopeFinder: ScopeFinder;
@@ -254,7 +257,7 @@ export class ScopeSymbolProvider {
     constructor(private _context: vscode.ExtensionContext) {
         this._status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
         this._status.tooltip = 'Symbol Navigation';
-        this._status.command = 'workbench.action.gotoSymbol';
+        this._status.command = 'scopebar.ShowScopeSymbols';
 
         let editor = vscode.window.activeTextEditor;
         if (editor) {
@@ -289,6 +292,12 @@ export class ScopeSymbolProvider {
             }
             this._scopeFinder = new ScopeFinder(e.document);
         });
+
+        vscode.commands.registerCommand(this._status.command, async () => {
+            let selection = vscode.window.activeTextEditor.selection;
+            let node = await this._scopeFinder.getScopeNode(selection.start);
+            this.showScopeSymbols(node);
+        });
     }
 
     private updateStatus(pos?: vscode.Position, delay?: number) {
@@ -296,7 +305,7 @@ export class ScopeSymbolProvider {
             this._cancelToken.cancel();
         }
         this._cancelToken = new vscode.CancellationTokenSource();
-        setTimeout(async(token: vscode.CancellationToken) =>{
+        setTimeout(async (token: vscode.CancellationToken) => {
             if (token.isCancellationRequested) {
                 return;
             }
@@ -304,14 +313,14 @@ export class ScopeSymbolProvider {
                 this._status.hide();
                 return;
             }
-            if(this._lastPos == pos) {
+            if (this._lastPos == pos) {
                 return;
             }
             let node: SymbolNode;
             try {
                 node = await this._scopeFinder.getScopeNode(pos);
             } catch (err) {
-                if (err.name == 'CancelUpdateError'){
+                if (err.name == 'CancelUpdateError') {
                     return;
                 }
                 throw err;
@@ -324,7 +333,73 @@ export class ScopeSymbolProvider {
             }
             this._status.text = node.getFullName();
             this._status.show();
-            
+
         }, delay ? delay : 32, this._cancelToken.token);
+    }
+
+    private onSelectNavigationItem(item: NavigationItem) {
+        if (!item) {
+            return;
+        }
+        let node = item.node;
+        vscode.window.activeTextEditor.revealRange(
+            node.range, vscode.TextEditorRevealType.InCenter);
+
+        let pos = node.range.start;
+        let newSelection = new vscode.Selection(pos, pos);
+        vscode.window.activeTextEditor.selection = newSelection;
+    }
+
+    private findScopeParent(node: SymbolNode): SymbolNode {
+        const ShowType = [
+            SymbolKind.Class,
+            SymbolKind.Namespace,
+            SymbolKind.Module
+        ]
+        if (!node) {
+            return null;
+        }
+        if (!node.symbolInfo || ShowType.indexOf(node.symbolInfo.kind) != -1) {
+            return node;
+        }
+        return this.findScopeParent(node.parent);
+    }
+
+    private async showScopeSymbols(node: SymbolNode) {
+        if (!node) {
+            return;
+        }
+        let parent = this.findScopeParent(node);
+        if (!parent) {
+            return;
+        }
+        let parentName = parent.getFullName();
+        let items = parent.children.map(subNode => {
+            assert(subNode.symbolInfo);
+            // TODO: find a way for showing custom icon
+            let item = <NavigationItem>{
+                label : '$(tag)  ' + subNode.symbolInfo.name,
+                description : parentName,
+                node: subNode
+            };
+            return item;
+        });
+
+        let oldRanges = vscode.window.activeTextEditor.visibleRanges;
+        let oldSelections = vscode.window.activeTextEditor.selections;
+
+        let target = await vscode.window.showQuickPick(items, {
+            placeHolder: parent.getFullName(),
+            canPickMany: false,
+            onDidSelectItem: this.onSelectNavigationItem.bind(this)
+        });
+
+        if (!target) {
+            // Didn't select any one, recover the position
+            vscode.window.activeTextEditor.revealRange(oldRanges[0]);
+            vscode.window.activeTextEditor.selections = oldSelections;
+            return;
+        }
+        this.onSelectNavigationItem(target);
     }
 }

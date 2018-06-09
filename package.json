@@ -19,17 +19,24 @@
         "url": "https://github.com/amos402/vscode-scope-bar/issues"
     },
     "engines": {
-        "vscode": "^1.9.0"
+        "vscode": "^1.23.0"
     },
     "categories": [
-        "Languages",
+        "Programming Languages",
         "Other"
     ],
     "activationEvents": [
         "*"
     ],
     "main": "./out/src/extension",
-    "contributes": {},
+    "contributes": {
+        "commands": [
+            {
+                "command": "scopebar.ShowScopeSymbols",
+                "title": "Show Scope's Symbols"
+            }
+        ]
+    },
     "scripts": {
         "vscode:prepublish": "tsc -p ./",
         "compile": "tsc -watch -p ./",
@@ -38,7 +45,7 @@
     },
     "devDependencies": {
         "typescript": "^2.0.3",
-        "vscode": "^1.0.0",
+        "vscode": "^1.1.6",
         "mocha": "^2.3.3",
         "@types/node": "^6.0.40",
         "@types/mocha": "^2.2.32"
