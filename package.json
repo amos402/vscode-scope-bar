@@ -2,7 +2,7 @@
     "name": "scope-bar",
     "displayName": "Scope Bar",
     "description": "Showing the scope symbol name of the cursor on status bar.",
-    "version": "0.0.5",
+    "version": "0.1.0",
     "icon": "images/icon.png",
     "publisher": "amos402",
     "author": {
