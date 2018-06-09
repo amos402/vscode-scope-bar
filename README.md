@@ -9,14 +9,13 @@ For more detail, see https://code.visualstudio.com/docs/extensionAPI/language-su
 
 ![feature-1](https://github.com/amos402/vscode-scope-bar/raw/master/images/feature-1.jpg)
 
-
 2. Navigate methods on current class.
     * Deafault keybinding: `ctrl + alt + p`
     * Configration for command for click status: `scopebar.Navigate`
         * `ScopeSymbol`: The effect as follows
         * `FileSymbol`: Goto file symbol, just like command by `@`.  
 
-![feature-2](https://github.com/amos402/vscode-scope-bar/raw/master/images/feature-2.jpg)
+![feature-2](https://github.com/amos402/vscode-scope-bar/raw/master/images/feature-2.gif)
 
 
 ## [Download](https://marketplace.visualstudio.com/items?itemName=amos402.scope-bar)
