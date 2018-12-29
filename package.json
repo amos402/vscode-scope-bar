@@ -2,7 +2,7 @@
     "name": "scope-bar",
     "displayName": "Scope Bar",
     "description": "Showing the scope symbol name of the cursor on status bar.",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "icon": "images/icon.png",
     "publisher": "amos402",
     "author": {
@@ -19,7 +19,7 @@
         "url": "https://github.com/amos402/vscode-scope-bar/issues"
     },
     "engines": {
-        "vscode": "^1.23.0"
+        "vscode": "^1.30.0"
     },
     "categories": [
         "Programming Languages",
@@ -36,13 +36,13 @@
                 "title": "Show Scope's Symbols"
             }
         ],
-        "keybindings":[
+        "keybindings": [
             {
                 "command": "scopebar.ShowScopeSymbols",
                 "key": "ctrl+alt+p"
             }
         ],
-        "configuration":[
+        "configuration": [
             {
                 "title": "ScopeBar.Navigate",
                 "properties": {
@@ -67,10 +67,10 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "typescript": "^2.0.3",
-        "vscode": "^1.1.6",
+        "typescript": "^3.1.4",
+        "vscode": "^1.1.25",
         "mocha": "^2.3.3",
-        "@types/node": "^6.0.40",
-        "@types/mocha": "^2.2.32"
+        "@types/node": "^8.10.25",
+        "@types/mocha": "^2.2.42"
     }
 }

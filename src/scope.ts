@@ -15,15 +15,15 @@ const ScopeSymbolKind = [
 class SymbolNode {
     parent?: SymbolNode;
     children: SymbolNode[];
-    symbolInfo?: vscode.SymbolInformation;
+    symbolInfo?: vscode.DocumentSymbol;
     _range?: vscode.Range;
 
-    constructor(symbolinfo?: vscode.SymbolInformation) {
+    constructor(symbolinfo?: vscode.DocumentSymbol) {
         this.symbolInfo = symbolinfo;
         this.children = []
     }
 
-    public static createSymbolTree(symbols: vscode.SymbolInformation[]): SymbolNode {
+    public static createSymbolTree(symbols: vscode.DocumentSymbol[]): SymbolNode {
         let root = new SymbolNode(null);
         let lastNode: SymbolNode = root;
 
@@ -36,21 +36,9 @@ class SymbolNode {
         //
         // We detect such cases by checking whether all symbols cover just a single line.
  
-        let properRanges = symbols.find(sym => sym.location.range.start.line != sym.location.range.end.line) != null;
+        let properRanges = symbols.find(sym => sym.range.start.line != sym.range.end.line) != null;
 
-        // XXX they should be sorted by symbol provider, usually
-        symbols.forEach(sym => {
-            let node = new SymbolNode(sym);
-            let curNode = lastNode;
-            while (curNode) {
-                if (curNode.containsNode(properRanges, node)) {
-                    curNode.addNode(node);
-                    break;
-                }
-                curNode = curNode.parent;
-            }
-            lastNode = node;
-        });
+        SymbolNode._createSymbolTree(root, symbols);
  
         if (!properRanges) {
             root._range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(1e10, 0)); // whole file
@@ -60,6 +48,14 @@ class SymbolNode {
         return root;
     }
 
+    private static _createSymbolTree(parent: SymbolNode, symbols: vscode.DocumentSymbol[]) {
+        symbols.forEach(sym => {
+            let node = new SymbolNode(sym);
+            parent.addNode(node);
+            SymbolNode._createSymbolTree(node, sym.children);
+        });
+    }
+
     private computeChildRanges() {
         // Approximate ranges if we don't have real ones.
 
@@ -67,12 +63,12 @@ class SymbolNode {
             let child = this.children[i];
             
             // start: at the first character of the symbol's line (keywords typically appear before a function name)
-            let start = new vscode.Position(child.symbolInfo.location.range.start.line, 0);
+            let start = new vscode.Position(child.symbolInfo.range.start.line, 0);
             
             // end: either at the start of the node's next sibling (if any), or at the end of the node's parent
             let end;
             if (i+1 < this.children.length) {
-                end = this.children[i+1].symbolInfo.location.range.start;
+                end = this.children[i+1].symbolInfo.range.start;
             } else {
                 end = this._range.end;
             }
@@ -91,7 +87,7 @@ class SymbolNode {
     }
 
     public get range() {
-        return this._range || this.symbolInfo.location.range;
+        return this._range || this.symbolInfo.range;
     }
 
     public addNode(node: SymbolNode) {
@@ -103,7 +99,7 @@ class SymbolNode {
         if (this.isRoot) {
             return true;
         } else if (properRanges) {
-            return this.range.contains(node.symbolInfo.location.range.end);
+            return this.range.contains(node.symbolInfo.range.end);
         } else {
             // No proper ranges, fallback to heuristics.
             // Assume no nested namespaces/classes/functions.
@@ -172,6 +168,7 @@ class CancelUpdateError implements Error {
 
 export class ScopeFinder {
     private _symbolRoot: SymbolNode;
+    private _symbols: vscode.DocumentSymbol[];
     private _updated;
     private _cancelToken: vscode.CancellationTokenSource;
     private static _dummyNode = new SymbolNode(null);
@@ -188,13 +185,17 @@ export class ScopeFinder {
         return this._doc;
     }
 
-    private getSymbols(): Thenable<vscode.SymbolInformation[]> {
+    private getSymbols(): Thenable<vscode.DocumentSymbol[]> {
         assert.equal(vscode.window.activeTextEditor.document, this._doc);
         return vscode.commands.executeCommand('vscode.executeDocumentSymbolProvider', this._doc.uri);
     }
 
     public async getScopeSymbols() {
         let symbols = await this.getSymbols();
+        // Maybe the symbol provider just not ready
+        if (!symbols) {
+            return null;
+        }
         let scopeSymbols = symbols.filter(sym => ScopeSymbolKind.indexOf(sym.kind) != -1);
         return scopeSymbols;
     }
@@ -218,8 +219,9 @@ export class ScopeFinder {
         if (token.isCancellationRequested) {
             throw new CancelUpdateError("CancellationRequested");
         }
-        if (symbols.length == 0) {
+        if (!symbols || symbols.length == 0) {
             this._updated = true;
+            return;
         }
         this._symbolRoot = SymbolNode.createSymbolTree(symbols);
     }

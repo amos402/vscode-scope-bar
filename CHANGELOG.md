@@ -1,6 +1,9 @@
 ## Change Log
 All notable changes to the "scope-bar" extension will be documented in this file.
 
+### [0.2.0]
+- Fixed cannot locate the symbol scope on new vscode
+
 ### [0.1.0]
 - Support Navigation for select symbol of parent scope
 
