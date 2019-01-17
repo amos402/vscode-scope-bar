@@ -8,7 +8,8 @@ const ScopeSymbolKind = [
     SymbolKind.Class,
     SymbolKind.Namespace,
     SymbolKind.Module,
-    SymbolKind.Constructor
+    SymbolKind.Constructor,
+    SymbolKind.Package
 ];
 
 
